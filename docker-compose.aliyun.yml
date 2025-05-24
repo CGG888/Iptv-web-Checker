@@ -1,6 +1,6 @@
 services:
   iptv-checker:
-    image: ghcr.io/cgg888/iptv-web-checker:1.0.0
+    image: registry.cn-hongkong.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
     container_name: iptv-checker
     ports:
       - "3000:3000"

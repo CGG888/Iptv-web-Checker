@@ -103,10 +103,20 @@ npm start
 
 ---
 
-## Docker 部署说明
+## 🐳 Docker 部署说明
 
-### 方式一：使用 Docker 命令直接运行
+### 📦 方式一：使用 GitHub Container Registry（国外推荐）
 
+1. 登录到 GitHub Container Registry ：
+```bash
+# 登录到 GitHub Container Registry
+docker login ghcr.io -u 你的GitHub用户名
+# 输入 GitHub Personal Access Token 作为密码
+# 如果没有 Token，请在 https://github.com/settings/tokens 创建
+# 需要勾选: write:packages, read:packages, delete:packages
+```
+
+2. 拉取和运行镜像：
 ```bash
 # 拉取镜像
 docker pull ghcr.io/cgg888/iptv-web-checker:1.0.0
@@ -118,17 +128,42 @@ docker run -d -p 3000:3000 --name iptv-checker ghcr.io/cgg888/iptv-web-checker:1
 docker run -d -p 8080:3000 --name iptv-checker ghcr.io/cgg888/iptv-web-checker:1.0.0
 ```
 
-### 方式二：使用 Docker Compose（推荐）
+### 📦 方式二：使用阿里云容器镜像（国内推荐）
 
-1. 下载 docker-compose.yml 文件：
+1. 登录到阿里云容器镜像服务：
+```bash
+# 登录到阿里云容器镜像服务（香港区域）
+docker login --username=你的阿里云账号 registry.cn-hongkong.aliyuncs.com
+# 输入镜像仓库的专用密码（在阿里云控制台获取）
+```
+
+2. 拉取和运行镜像：
+```bash
+# 拉取镜像
+docker pull registry.cn-hongkong.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+
+# 运行容器（默认端口 3000）
+docker run -d -p 3000:3000 --name iptv-checker registry.cn-hongkong.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+
+# 如果要使用其他端口（例如 8080），可以：
+docker run -d -p 8080:3000 --name iptv-checker registry.cn-hongkong.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+```
+
+### 🚢 方式三：使用 Docker Compose（推荐）
+
+1. 创建 docker-compose.yml 文件：
 ```bash
 # 创建项目目录
 mkdir iptv-checker && cd iptv-checker
 
-# 下载 docker-compose.yml
-wget https://raw.githubusercontent.com/CGG888/iptv-web-checker/main/docker-compose.yml
-# 或手动创建 docker-compose.yml 文件并粘贴以下内容：
-version: '3'
+# 创建 docker-compose.yml 文件并编辑
+nano docker-compose.yml  # 或者使用其他编辑器
+```
+
+2. 选择一个镜像源，将以下内容粘贴到 docker-compose.yml（二选一）：
+
+GitHub 版本：
+```yaml
 services:
   iptv-checker:
     image: ghcr.io/cgg888/iptv-web-checker:1.0.0
@@ -137,37 +172,142 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
     restart: unless-stopped
 ```
 
-2. 启动服务：
+阿里云版本：
+```yaml
+services:
+  iptv-checker:
+    image: registry.cn-hongkong.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+    container_name: iptv-checker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+```
+
+3. 🚀 启动服务：
 ```bash
 docker-compose up -d
 ```
 
-3. 查看日志：
+4. 📋 查看日志：
 ```bash
-docker-compose logs
+docker-compose logs -f
 ```
 
-4. 停止服务：
+5. ⏹️ 停止服务：
 ```bash
 docker-compose down
 ```
 
-#### 注意事项
-- 确保系统已安装 Docker 和 Docker Compose
-- 容器默认监听 3000 端口
-- 首次运行会自动下载所需的镜像
-- 镜像大小约 200MB，采用 Alpine Linux 基础镜像，已经过优化
-- 内置 ffmpeg，无需额外安装
-- 使用 Docker Compose 可以更方便地管理容器
+#### ❗ 注意事项
+- ✅ 确保系统已安装 Docker 和 Docker Compose
+- 🔐 使用 GitHub 镜像源需要先登录 ghcr.io
+- 🚀 国内用户建议使用阿里云镜像源，速度更快
+- 🔌 容器默认监听 3000 端口
+- 📦 镜像大小约 200MB，采用 Alpine Linux 基础镜像
+- 🎥 内置 ffmpeg，无需额外安装
 
-#### 常见问题
-1. 如果端口被占用，编辑 docker-compose.yml 修改端口映射（例如："8080:3000"）
-2. 如果需要查看日志：`docker-compose logs -f`
-3. 如果需要重启容器：`docker-compose restart`
-4. 如果需要更新镜像：`docker-compose pull && docker-compose up -d`
+#### 💡 常见问题
+1. 🔄 如果端口被占用，修改端口映射（例如："8080:3000"）
+2. 🔒 如果拉取失败，检查 Docker 登录状态
+3. 🌐 国内用户如果 GitHub 镜像拉取较慢，建议切换到阿里云镜像
+4. 📋 查看实时日志：`docker-compose logs -f`
+5. 🔄 重启容器：`docker-compose restart`
+6. ⬆️ 更新镜像：`docker-compose pull && docker-compose up -d`
+
+### 7. 🐳 Docker 容器部署
+
+#### 7.1 从 GitHub Container Registry 拉取镜像
+
+```bash
+# 拉取最新版本镜像
+docker pull ghcr.io/cgg888/iptv-web-checker:1.0.0
+
+# 运行容器
+docker run -d \
+  --name iptv-checker \
+  -p 3000:3000 \
+  -e TZ=Asia/Shanghai \
+  -v ./data:/app/data \
+  -v ./logs:/app/logs \
+  ghcr.io/cgg888/iptv-web-checker:1.0.0
+```
+
+#### 7.2 从阿里云容器镜像服务拉取（国内推荐）
+
+```bash
+# 拉取最新版本镜像
+docker pull registry.cn-hangzhou.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+
+# 运行容器
+docker run -d \
+  --name iptv-checker \
+  -p 3000:3000 \
+  -e TZ=Asia/Shanghai \
+  -v ./data:/app/data \
+  -v ./logs:/app/logs \
+  registry.cn-hangzhou.aliyuncs.com/cgg888/iptv-web-checker:1.0.0
+```
+
+#### 7.3 使用 Docker Compose 部署（推荐）
+
+1. 创建 `docker-compose.yml` 文件：
+
+```yaml
+version: '3'
+services:
+  iptv-checker:
+    image: ghcr.io/cgg888/iptv-web-checker:1.0.0  # 或使用阿里云镜像
+    container_name: iptv-checker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+```
+
+2. 在 `docker-compose.yml` 所在目录执行：
+
+```bash
+docker-compose up -d
+```
+
+#### 7.4 注意事项
+- 🔒 如果使用 GitHub Container Registry，首次拉取可能需要登录：
+  ```bash
+  echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+  ```
+- 📁 容器内的 `/app/data` 和 `/app/logs` 目录已映射到宿主机，数据将被持久化
+- 🕒 默认时区设置为 `Asia/Shanghai`，可通过环境变量 `TZ` 修改
+- 🔄 容器配置了自动重启策略（unless-stopped）
+- 🌐 应用默认监听 3000 端口，可根据需要修改映射端口
+
+#### 7.5 常见问题解决
+- 📡 **无法拉取镜像**：
+  - GitHub 镜像拉取慢：尝试使用阿里云镜像
+  - 网络问题：检查网络连接和防火墙设置
+- 🚫 **容器无法启动**：
+  - 检查端口是否被占用：`netstat -nltp | grep 3000`
+  - 查看容器日志：`docker logs iptv-checker`
+- 💾 **数据持久化问题**：
+  - 确保挂载目录存在且有正确的权限
+  - 可执行 `docker exec -it iptv-checker ls -la /app/data` 检查容器内权限
 
 ---
 
