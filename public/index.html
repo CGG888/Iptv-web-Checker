@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV组播检测工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; }
+        .main-card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px #e0e0e0; padding: 32px 24px; margin-bottom: 32px; }
+        .stream-item { margin-bottom: 10px; padding: 10px; border: 1px solid #eee; border-radius: 6px; background: #fafbfc; transition: box-shadow .2s; }
+        .stream-item.available { border-left: 4px solid #28a745; }
+        .stream-item.unavailable { border-left: 4px solid #dc3545; }
+        .stream-item:hover { box-shadow: 0 2px 8px #e0e0e0; }
+        .stat-card { background: #6f42c1; color: #fff; border-radius: 8px; padding: 18px 0; text-align: center; margin-bottom: 16px; }
+        .stat-card .stat-title { font-size: 1.1rem; }
+        .stat-card .stat-value { font-size: 2.2rem; font-weight: bold; }
+        .search-bar { max-width: 300px; margin-bottom: 16px; }
+        .btn-action { min-width: 100px; }
+        @media (max-width: 768px) {
+            .main-card { padding: 16px 6px; }
+        }
+        /* 美化进度条和上下提示样式 */
+#progressBarWrap {
+  background: #f3f3f3;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #e0e0e0;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+#progressBar {
+  background: linear-gradient(90deg, #6f42c1 0%, #28a745 100%);
+  color: #fff !important;
+  font-size: 1.08rem !important;
+  font-weight: bold;
+  letter-spacing: 1px;
+  border-radius: 8px;
+  transition: width 0.3s;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#currentCheckInfo, #lastResultInfo, #progressStatusInfo {
+  font-size: 1.08rem;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  color: #6f42c1;
+  margin-bottom: 8px;
+  box-shadow: 0 2px 8px #e0e0e0;
+  padding: 8px 16px;
+  font-weight: 500;
+}
+#lastResultInfo {
+  color: #222;
+  background: #f3f3f3;
+  border: 1px solid #d1d1e0;
+}
+    </style>
+</head>
+<body>
+    <div class="container mt-4" style="max-width:1200px;">
+        <h1 class="mb-2 text-center" style="color:#6f42c1;letter-spacing:2px;">IPTV组播检测工具</h1>
+        <div class="text-center mb-4" style="color:#888;font-size:1.08rem;">工具只能在IPTV同局域网内进行使用检测</div>
+        <div class="row mb-4" style="max-width:100%;">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-title">总数</div>
+                    <div class="stat-value" id="stat-total">0</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card" style="background:#28a745;">
+                    <div class="stat-title">在线</div>
+                    <div class="stat-value" id="stat-online">0</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card" style="background:#dc3545;">
+                    <div class="stat-title">离线</div>
+                    <div class="stat-value" id="stat-offline">0</div>
+                </div>
+            </div>
+        </div>
+        <div class="main-card" style="margin:0 auto;max-width:100%;">
+            <h5 class="mb-3 text-center">组播检测</h5>
+            <form id="streamForm" class="row g-3 align-items-end justify-content-center">
+                <div class="col-md-5 col-lg-5 col-12">
+                    <label for="udpxyUrl" class="form-label">UDPXY服务器地址 <span style="color:#888;font-size:0.98rem;">（请自行搭建服务）</span></label>
+                    <input type="text" class="form-control" id="udpxyUrl" placeholder="http://ip:port" value="http://192.168.88.1:8333" required>
+                </div>
+                <div class="col-md-5 col-lg-5 col-12 mt-2">
+                    <label for="singleInput" class="form-label">单条组播（格式：频道名,rtp://ip:port，仅支持单条组播地址）</label>
+                    <input type="text" class="form-control" id="singleInput" placeholder="CCTV1,rtp://239.77.0.30:5146" required>
+                </div>
+                <div class="col-md-2 col-lg-2 col-12 d-grid mt-2">
+                    <button type="submit" class="btn btn-primary btn-action" style="font-weight:bold;letter-spacing:1px;">单条检测</button>
+                </div>
+            </form>
+            <hr>
+            <h5 class="mt-4 mb-2 text-center"></h5>
+            <div class="row g-3 align-items-end justify-content-center">
+                <div class="col-md-10 col-lg-10 col-12">
+                    <label for="batchInput" class="form-label">批量组播（格式：频道名,rtp://ip:port，一行一条组播地址）</label>
+                    <textarea class="form-control" id="batchInput" rows="4" placeholder="CCTV1,rtp://239.77.0.30:5146\nCCTV2,rtp://239.77.0.31:5146\n..."></textarea>
+                </div>
+                <div class="col-md-2 col-lg-2 col-12 d-grid">
+                    <button class="btn btn-success btn-action" id="batchCheckBtn" style="font-weight:bold;letter-spacing:1px;">批量检测</button>
+                </div>
+            </div>
+            <div id="currentCheckInfo" class="alert alert-info mt-3" style="display:none;margin-bottom:8px;padding:8px 16px;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span id="currentCheckText" style="font-size:0.95rem;"></span>
+                </div>
+            </div>
+            <div class="progress mt-2" style="height: 28px; display:none;" id="progressBarWrap">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" role="progressbar" style="width: 0%; font-size:0.95rem; line-height:1.2; text-align:center;">0%</div>
+            </div>
+            <div id="progressNextInfo" style="margin-top:8px;color:#6f42c1;font-weight:bold;display:none;"></div>
+        </div>
+        <div class="main-card mt-4" style="margin:0 auto;max-width:100%;">
+            <div class="d-flex flex-wrap align-items-center mb-3" style="gap:12px;">
+                <input class="form-control search-bar me-2" id="searchInput" placeholder="搜索频道名/地址..." style="max-width:260px;min-width:180px;">
+                <div class="dropdown d-inline-block me-2">
+                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        导出数据
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="exportDropdown" style="min-width:220px;">
+                        <li class="px-3 py-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="exportOnline" checked>
+                                <label class="form-check-label" for="exportOnline">在线</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="exportOffline">
+                                <label class="form-check-label" for="exportOffline">离线</label>
+                            </div>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button class="dropdown-item" onclick="exportData('txt');return false;">导出为TXT格式</button></li>
+                        <li><button class="dropdown-item" onclick="exportData('m3u');return false;">导出为M3U格式</button></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="row mb-2">
+                <div class="col-12 d-flex align-items-center justify-content-between">
+                    <div>
+                        <button class="btn btn-secondary btn-action me-1" id="filterAll">全部</button>
+                        <button class="btn btn-success btn-action me-1" id="filterOnline">在线</button>
+                        <button class="btn btn-danger btn-action me-1" id="filterOffline">离线</button>
+                        <button class="btn btn-dark btn-action" id="clearAllBtn">清除</button>
+                    </div>
+                    <div id="pagination" class="d-flex"></div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12" id="streams-list"></div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allStreams = [];
+        let lastSearch = '';
+        let filterStatus = 'all'; // all/online/offline
+// 在进度条下方显示上一条检测结果
+function showLastResult(data, name, multicastUrl) {
+    let lastResultDiv = document.getElementById('lastResultInfo');
+    if (!lastResultDiv) {
+        lastResultDiv = document.createElement('div');
+        lastResultDiv.id = 'lastResultInfo';
+        lastResultDiv.className = 'alert alert-secondary mt-2';
+        const progressBarWrap = document.getElementById('progressBarWrap');
+        progressBarWrap.parentNode.insertBefore(lastResultDiv, progressBarWrap.nextSibling);
+    }
+    lastResultDiv.style.display = '';
+    lastResultDiv.innerHTML = `最近检测：<b>${name || data.name || '-'}</b> | <span style='color:#888;'>${multicastUrl || data.multicastUrl || '-'}</span> | 视频:<b>${data.resolution || '-'}</b> | 编码:<b>${data.codec || '-'}</b> | 帧率:<b>${data.frameRate || '-'}</b> | <span style='color:${data.isAvailable ? '#28a745' : '#dc3545'};font-weight:bold;'>${data.isAvailable ? '在线' : '离线'}</span>`;
+}
+// 检查流
+async function checkStream(udpxyUrl, multicastUrl, name = '') {
+    showProgress(0, 1, `正在检测: ${name || '-'}`);
+    const startTime = Date.now();
+    try {
+        const response = await fetch('/api/check-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ udpxyUrl, multicastUrl, name }),
+        });
+        const data = await response.json();
+        if (!data.success) throw new Error(data.message || '检测失败');
+        // 检测完成后立即显示本条数据
+        showProgress(1, 1, `检测完成: ${name || '-'} | 视频:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+        showLastResult(data, name, multicastUrl);
+        setTimeout(() => {
+            // 检测完成后统计并显示详细数据
+            const total = 1;
+            const online = data.isAvailable ? 1 : 0;
+            const offline = data.isAvailable ? 0 : 1;
+            const usedSec = ((Date.now() - startTime) / 1000).toFixed(2);
+            showProgress(1, 1, `检测完成 | 总数: ${total} 在线: ${online} 离线: ${offline} 耗时: ${usedSec}s | 视频:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+            getStreams();
+        }, 1800);
+        return data;
+    } catch (error) {
+        showProgress(1, 1, `检测失败: ${name || '-'}`);
+        setTimeout(hideProgress, 1800);
+        console.error('Error:', error);
+        return { success: false, message: '请求失败' };
+    }
+}
+// 获取所有流
+async function getStreams() {
+    try {
+        const response = await fetch('/api/streams');
+        const data = await response.json();
+        allStreams = data.streams || [];
+        updateStatsAndDisplay();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+// 删除流
+async function deleteStream(index) {
+    showCenterConfirm('确定要删除该流吗？', async function(ok) {
+        if (!ok) return;
+        try {
+            const response = await fetch(`/api/stream/${index}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (data.success) getStreams();
+        } catch (error) { console.error('Error:', error); }
+    });
+}
+// 批量检测流
+async function batchCheckStreams(udpxyUrl, batchText) {
+    const lines = batchText.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+    const multicastList = lines.map(line => {
+        const [name, multicastUrl] = line.split(',');
+        return { name: name ? name.trim() : '', multicastUrl: multicastUrl ? multicastUrl.trim() : '' };
+    }).filter(item => item.multicastUrl.startsWith('rtp://'));
+    if (multicastList.length === 0) {
+        showCenterConfirm('请粘贴组播地址', null, true);
+        return;
+    }
+    try {
+        let lastSuccess = null;
+        for (let i = 0; i < multicastList.length; i++) {
+            const item = multicastList[i];
+            showProgress(i, multicastList.length, `正在检测: ${item.name || '-'}`);
+            // 检测本条
+            const response = await fetch('/api/check-stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ udpxyUrl, multicastUrl: item.multicastUrl, name: item.name }),
+            });
+            const data = await response.json();
+            // 检测后立即显示本条数据
+            showProgress(i + 1, multicastList.length, `检测: ${item.name || '-'} | 视频:${data.resolution || '-'} | 编码:${data.codec || '-'} | 帧率:${data.frameRate || '-'} | ${data.isAvailable ? '✅在线' : '❌离线'}`);
+            if (data.success) lastSuccess = { ...data, name: item.name, multicastUrl: item.multicastUrl };
+            if (lastSuccess) showLastResult(lastSuccess, lastSuccess.name, lastSuccess.multicastUrl);
+            await new Promise(r => setTimeout(r, 400)); // 短暂延迟便于观察进度
+        }
+        // 统计
+        const responseAll = await fetch('/api/streams');
+        const allData = await responseAll.json();
+        const onlineCount = (allData.streams || []).filter(r => r.isAvailable).length;
+        const offlineCount = (allData.streams || []).filter(r => !r.isAvailable).length;
+        showProgress(multicastList.length, multicastList.length, `检测完成 | 总数: ${multicastList.length} 在线: ${onlineCount} 离线: ${offlineCount}`);
+        getStreams();
+    } catch (error) {
+        showProgress(1, 1, '批量检测请求失败');
+        setTimeout(hideProgress, 1800);
+        console.error('Error:', error);
+    }
+}
+        // 清除按钮逻辑（普通清除）
+        document.getElementById('clearAllBtn').onclick = async function() {
+            showCenterConfirm('确定要清空所有检测结果吗？', async function(ok) {
+                if (!ok) return;
+                await fetch('/api/streams', { method: 'DELETE' });
+                getStreams();
+            });
+        };
+        // 组播检测、检测结果标题字号风格统一
+const groupTitle = document.querySelector('.main-card h5.mb-3.text-center');
+if (groupTitle) {
+    groupTitle.style.fontSize = '1.25rem';
+    groupTitle.style.fontWeight = 'bold';
+    groupTitle.style.letterSpacing = '1px';
+    groupTitle.style.marginBottom = '18px';
+}
+const resultTitle = document.querySelector('.main-card.mt-4 h5.mb-0, .main-card.mt-4 h4.mb-0');
+if (resultTitle) {
+    resultTitle.style.fontSize = '1.25rem';
+    resultTitle.style.fontWeight = 'bold';
+    resultTitle.style.letterSpacing = '1px';
+    resultTitle.style.marginBottom = '18px';
+}
+// 2. 操作区布局调整
+const opRow = document.querySelector('.main-card.mt-4 .row.mb-2 .col-12.d-flex');
+if (opRow) {
+    // 搜索框靠左
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.classList.add('me-3');
+        opRow.insertBefore(searchInput, opRow.firstChild);
+    }
+    // 筛选按钮居中
+    const btnAll = document.getElementById('filterAll');
+    const btnOnline = document.getElementById('filterOnline');
+    const btnOffline = document.getElementById('filterOffline');
+    const btnClear = document.getElementById('clearAllBtn');
+    if (btnAll && btnOnline && btnOffline && btnClear) {
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'd-flex justify-content-center align-items-center';
+        btnGroup.style.gap = '8px';
+        btnGroup.appendChild(btnAll);
+        btnGroup.appendChild(btnOnline);
+        btnGroup.appendChild(btnOffline);
+        btnGroup.appendChild(btnClear);
+        opRow.appendChild(btnGroup);
+    }
+    // 移除每页显示和页码相关内容
+    const pageSizeSelect = document.getElementById('pageSizeSelect');
+    const pageInfo = document.getElementById('pageInfo');
+    if (pageSizeSelect) pageSizeSelect.remove();
+    if (pageInfo) pageInfo.remove();
+    // 不再插入页码相关div
+}
+        // 显示统计和流列表
+        function updateStatsAndDisplay() {
+            const search = lastSearch.trim().toLowerCase();
+            let filtered = allStreams;
+            if (search) {
+                filtered = allStreams.filter(s => (s.name || '').toLowerCase().includes(search) || (s.multicastUrl || '').toLowerCase().includes(search));
+            }
+            if (filterStatus === 'online') filtered = filtered.filter(s => s.isAvailable);
+            if (filterStatus === 'offline') filtered = filtered.filter(s => !s.isAvailable);
+            const online = filtered.filter(s => s.isAvailable);
+            const offline = filtered.filter(s => !s.isAvailable);
+            document.getElementById('stat-total').innerText = filtered.length;
+            document.getElementById('stat-online').innerText = online.length;
+            document.getElementById('stat-offline').innerText = offline.length;
+            // 直接显示全部，不分页
+            const pageArr = filtered;
+            // 单行显示
+            const render = arr => arr.map((stream, idx) => `
+    <div class="stream-item d-flex align-items-center justify-content-between ${stream.isAvailable ? 'available' : 'unavailable'}" style="padding:8px 18px;margin-bottom:8px;gap:8px;">
+        <div class="d-flex align-items-center flex-wrap" style="flex:1;min-width:220px;gap:12px;">
+            <div style="min-width:180px;max-width:220px;display:flex;flex-direction:column;align-items:flex-start;">
+                <span style="font-size:1rem;color:#222;">${stream.name || '-'}</span>
+                <span style="font-size:1rem;color:#888;word-break:break-all;">${stream.multicastUrl}</span>
+            </div>
+            <span style="display:inline-block;padding:2px 12px;border-radius:12px;font-size:1rem;font-weight:normal;background:${stream.isAvailable ? '#e6f4ea':'#fbeaea'};color:${stream.isAvailable ? '#28a745':'#dc3545'};min-width:48px;text-align:center;">${stream.isAvailable ? '在线' : '离线'}</span>
+            <span style="font-size:1rem;min-width:110px;text-align:left;">视频:${stream.isAvailable ? (stream.resolution || '-') : '-'}</span>
+            <span style="font-size:1rem;min-width:110px;text-align:left;">编码:${stream.isAvailable ? (stream.codec || '-') : '-'}</span>
+            <span style="font-size:1rem;min-width:110px;text-align:left;">帧率:${stream.isAvailable && stream.frameRate ? stream.frameRate + 'fps' : '-'}</span>
+        </div>
+        <button class="btn btn-outline-primary btn-action me-1" style="min-width:90px;" onclick="openPotPlayer('${stream.udpxyUrl}/rtp/${(stream.multicastUrl||'').replace('rtp://','')}')">PotPlayer</button>
+        <button class="btn btn-outline-success btn-action me-2" style="min-width:90px;" onclick="openVLC('${stream.udpxyUrl}/rtp/${(stream.multicastUrl||'').replace('rtp://','')}')">VLC</button>
+        <button class="btn btn-danger btn-action" onclick="deleteStream(${allStreams.indexOf(stream)})">删除</button>
+    </div>
+`).join('');
+            document.getElementById('streams-list').innerHTML = render(pageArr);
+        }
+        // 搜索功能
+        document.getElementById('searchInput').addEventListener('input', function() {
+            lastSearch = this.value;
+            updateStatsAndDisplay();
+        });
+        // 表单提交处理
+        document.getElementById('streamForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const singleInput = document.getElementById('singleInput').value.trim();
+            if (!singleInput) {
+                showCenterConfirm('请输入频道名和组播地址', null, true); // 只显示确定按钮
+                return;
+            }
+            const [name, multicastUrl] = singleInput.split(',');
+            if (!multicastUrl || !multicastUrl.trim().startsWith('rtp://')) {
+                showCenterConfirm('格式错误，示例：CCTV1,rtp://239.77.0.30:5146', null, true); // 只显示确定按钮
+                return;
+            }
+            const udpxyUrl = document.getElementById('udpxyUrl') ? document.getElementById('udpxyUrl').value : '';
+            showProgress(0, 1, '正在检测', name, multicastUrl);
+            await checkStream(udpxyUrl, multicastUrl.trim(), name ? name.trim() : '');
+        });
+        // 批量检测按钮
+        document.getElementById('batchCheckBtn').addEventListener('click', async () => {
+            const udpxyUrl = document.getElementById('udpxyUrl').value;
+            const batchText = document.getElementById('batchInput').value;
+            if (!udpxyUrl) {
+                showCenterConfirm('请先填写UDPXY服务器地址', null, true);
+                return;
+            }
+            if (!batchText.trim()) {
+                showCenterConfirm('请粘贴组播地址', null, true);
+                return;
+            }
+            await batchCheckStreams(udpxyUrl, batchText);
+        });
+        // 导出功能
+        function exportData(type) {
+            // 弹窗说明
+            let msg = '';
+            if (type === 'txt') {
+                msg = 'TXT格式说明：每行为 频道名称,rtp://ip:端口，适合文本编辑器查看和批量处理。';
+            } else if (type === 'm3u') {
+                msg = 'M3U格式说明：每行为标准M3U格式，地址为UDPXY服务器/rtp/ip:端口。\n如需对频道分组，请使用EPG软件进行操作。';
+            }
+            showCenterConfirm(msg, function(ok) {
+                if (!ok) return;
+                fetch('/api/streams').then(r => r.json()).then(data => {
+                    const streams = data.streams || [];
+                    const onlineEl = document.getElementById('exportOnline');
+                    const offlineEl = document.getElementById('exportOffline');
+                    const onlineChecked = onlineEl ? onlineEl.checked : false;
+                    const offlineChecked = offlineEl ? offlineEl.checked : false;
+                    if (!onlineChecked && !offlineChecked) {
+                        showCenterConfirm('请至少选择一种导出类型（在线/离线）', null, true);
+                        return;
+                    }
+                    let filtered = streams;
+                    if (onlineChecked && !offlineChecked) {
+                        filtered = streams.filter(s => s.isAvailable);
+                    } else if (!onlineChecked && offlineChecked) {
+                        filtered = streams.filter(s => !s.isAvailable);
+                    }
+                    if (filtered.length === 0) {
+                        showCenterConfirm('没有可导出的数据', null, true);
+                        return;
+                    }
+                    let content = '';
+                    let filename = '';
+                    if (type === 'txt') {
+                        content = filtered.map(s => `${s.name || ''},${s.multicastUrl}`).join('\r\n');
+                        filename = (onlineChecked && !offlineChecked) ? 'iptv_online.txt' : (!onlineChecked && offlineChecked) ? 'iptv_offline.txt' : 'iptv_all.txt';
+                    } else if (type === 'm3u') {
+                        content = '#EXTM3U\r\n' + filtered.map(s => `#EXTINF:-1,${s.name || ''}\r\n${s.udpxyUrl}/rtp/${(s.multicastUrl||'').replace('rtp://','')}`).join('\r\n');
+                        filename = (onlineChecked && !offlineChecked) ? 'iptv_online.m3u' : (!onlineChecked && offlineChecked) ? 'iptv_offline.m3u' : 'iptv_all.m3u';
+                    }
+                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                });
+            }, true);
+        }
+        // 进度条上方、下方、进度条本身样式统一美化
+function showStatusInfo(text) {
+    let statusDiv = document.getElementById('progressStatusInfo');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'progressStatusInfo';
+        // 插入到批量检测按钮下方，进度条上方
+        const batchBtn = document.getElementById('batchCheckBtn');
+        if (batchBtn && batchBtn.parentNode.parentNode.nextElementSibling) {
+            batchBtn.parentNode.parentNode.parentNode.insertBefore(statusDiv, batchBtn.parentNode.parentNode.nextElementSibling);
+        } else {
+            // 兜底：插入到进度条上方
+            const barWrap = document.getElementById('progressBarWrap');
+            barWrap.parentNode.insertBefore(statusDiv, barWrap);
+        }
+    }
+    statusDiv.style.display = '';
+    statusDiv.style.marginTop = '12px'; // 增加与按钮的间距
+    statusDiv.innerHTML = text;
+}
+function hideStatusInfo() {
+    let statusDiv = document.getElementById('progressStatusInfo');
+    if (statusDiv) statusDiv.style.display = 'none';
+}
+// 修改 showProgress 让进度条上方/下方/进度条本身样式一致
+function showProgress(done, total, status) {
+    const barWrap = document.getElementById('progressBarWrap');
+    const bar = document.getElementById('progressBar');
+    barWrap.style.display = '';
+    let percent = total ? Math.round(done / total * 100) : 0;
+    bar.style.width = percent + '%';
+    bar.innerText = `${percent}% | 进度: ${done}/${total} | ${status || ''}`;
+    showStatusInfo(status || '');
+}
+function hideProgress() {
+    document.getElementById('progressBarWrap').style.display = 'none';
+    hideStatusInfo();
+    let lastResultDiv = document.getElementById('lastResultInfo');
+    if (lastResultDiv) lastResultDiv.style.display = 'none';
+    let currentCheckInfo = document.getElementById('currentCheckInfo');
+    if (currentCheckInfo) currentCheckInfo.style.display = 'none';
+}
+// 页面加载时设置UDPXY服务器地址默认值
+        window.addEventListener('DOMContentLoaded', function() {
+            let udpxyInput = document.getElementById('udpxyUrl');
+            if (!udpxyInput) {
+                // 若页面没有该输入框则动态插入
+                const form = document.getElementById('streamForm');
+                const udpxyDiv = document.createElement('div');
+                udpxyDiv.className = 'col-md-10';
+                udpxyDiv.innerHTML = '<label for="udpxyUrl" class="form-label">UDPXY服务器地址</label>' +
+                    '<input type="text" class="form-control" id="udpxyUrl" placeholder="http://ip:port" value="http://192.168.88.1:8333" required>';
+                form.insertBefore(udpxyDiv, form.firstChild);
+            } else {
+                udpxyInput.value = 'http://192.168.88.1:8333';
+            }
+        });
+        // 页面加载时获取流列表
+        getStreams();
+        // 页面加载时初始化统计
+        updateInputCount();
+        function openPotPlayer(url) {
+    window.location.href = 'potplayer://' + url;
+}
+function openVLC(url) {
+    window.location.href = 'vlc://' + url;
+}
+// 居中弹窗函数（美化为与删除弹窗一致的样式）
+function showCenterConfirm(msg, callback, onlyOk = false) {
+    let modal = document.getElementById('centerModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'centerModal';
+        modal.innerHTML = `
+        <div class="modal fade" tabindex="-1" style="display:block;background:rgba(0,0,0,0.25);z-index:9999;">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="border-radius:12px;box-shadow:0 4px 24px #0002;">
+              <div class="modal-body text-center" id="centerModalMsg" style="font-size:1.08rem;padding:32px 18px 18px 18px;color:#222;"></div>
+              <div class="modal-footer justify-content-center" style="border-top:none;padding-bottom:24px;">
+                <button type="button" class="btn btn-primary px-4 me-3" id="centerModalOk" style="font-size:1.08rem;">确定</button>
+                <button type="button" class="btn btn-secondary px-4" id="centerModalCancel" style="font-size:1.08rem;display:none;">取消</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+    document.getElementById('centerModalMsg').innerText = msg;
+    modal.style.display = 'block';
+    modal.querySelector('.modal').classList.add('show');
+    // 只显示确定按钮
+    const okBtn = document.getElementById('centerModalOk');
+    const cancelBtn = document.getElementById('centerModalCancel');
+    if (onlyOk) {
+        cancelBtn.style.display = 'none';
+        okBtn.classList.remove('me-3');
+    } else {
+        cancelBtn.style.display = '';
+        okBtn.classList.add('me-3');
+    }
+    function close() {
+        modal.style.display = 'none';
+        modal.querySelector('.modal').classList.remove('show');
+    }
+    okBtn.onclick = function() { close(); if (callback) callback(true); };
+    cancelBtn.onclick = function() { close(); if (callback) callback(false); };
+}
+// 统计输入框数据总数并显示到顶部统计卡片
+function updateInputCount() {
+    let singleInput = document.getElementById('singleInput').value.trim();
+    let batchInput = document.getElementById('batchInput').value.trim();
+    let count = 0;
+    if (batchInput) {
+        count = batchInput.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#')).length;
+    } else if (singleInput) {
+        count = 1;
+    }
+    document.getElementById('stat-total').innerText = count;
+    document.getElementById('stat-online').innerText = 0;
+    document.getElementById('stat-offline').innerText = 0;
+}
+// 绑定输入事件
+const singleInputEl = document.getElementById('singleInput');
+const batchInputEl = document.getElementById('batchInput');
+singleInputEl.addEventListener('input', function() {
+    if (!batchInputEl.value.trim()) updateInputCount();
+});
+batchInputEl.addEventListener('input', updateInputCount);
+        // 移除input和textarea的required属性，完全用自定义弹窗校验
+const singleInput = document.getElementById('singleInput');
+if (singleInput) singleInput.removeAttribute('required');
+const batchInput = document.getElementById('batchInput');
+if (batchInput) batchInput.removeAttribute('required');
+document.getElementById('filterAll').onclick = function() { filterStatus = 'all'; updateStatsAndDisplay(); };
+document.getElementById('filterOnline').onclick = function() { filterStatus = 'online'; updateStatsAndDisplay(); };
+document.getElementById('filterOffline').onclick = function() { filterStatus = 'offline'; updateStatsAndDisplay(); };
+    </script>
+</body>
+</html>
