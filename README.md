@@ -1,37 +1,38 @@
-# Iptv-web-Checker
+# 📺 Iptv-web-Checker
 
-版本号：v1.0.0  
-作者：超哥哥
+![Iptv-web-Checker 检测空数据界面](./public/preview-empty.png)
+
+🏷️ 版本号：v1.0.0  
 
 ---
 
-## 项目简介
+## 🌟 项目简介
 
 Iptv-web-Checker 是一款基于 Node.js + Express + ffprobe 的 IPTV 组播流检测与管理工具，提供现代化 Web 界面，支持批量检测、状态筛选、导出等功能，适用于 IPTV 网络环境下的组播流批量检测、维护和导出。
 
 ---
 
-## 软件功能说明
+## ⚡ 软件功能说明
 
-- **批量检测**：支持批量导入 IPTV 组播流地址，自动检测每路流的在线状态、分辨率、编码、帧率等信息。
-- **单条检测**：可单独检测某一路组播流。
-- **状态筛选**：可按“全部/在线/离线”筛选显示检测结果。
-- **搜索功能**：支持按频道名或地址模糊搜索。
-- **导出功能**：
-  - TXT 格式：频道名称,rtp://ip:端口，每行一条。
-  - M3U 格式：标准 M3U，地址为 UDPXY服务器/rtp/ip:端口。
-  - 导出前弹窗说明格式，M3U分组请用EPG软件。
-- **删除/清空**：支持单条删除和一键清空所有检测结果。
-- **统计信息**：实时显示总数、在线、离线数量。
-- **美观UI**：响应式设计，适配 PC 和移动端。
+- 🔍 **批量检测**：支持批量导入 IPTV 组播流地址，自动检测每路流的在线状态、分辨率、编码、帧率等信息
+- 🎯 **单条检测**：可单独检测某一路组播流
+- 🔄 **状态筛选**：可按"全部/在线/离线"筛选显示检测结果
+- 🔎 **搜索功能**：支持按频道名或地址模糊搜索
+- 📤 **导出功能**：
+  - 📝 TXT 格式：频道名称,rtp://ip:端口，每行一条
+  - 📋 M3U 格式：标准 M3U，地址为 UDPXY服务器/rtp/ip:端口
+  - 💡 导出前弹窗说明格式，M3U分组请用EPG软件
+- 🗑️ **删除/清空**：支持单条删除和一键清空所有检测结果
+- 📊 **统计信息**：实时显示总数、在线、离线数量
+- 🎨 **美观UI**：响应式设计，适配 PC 和移动端
 
 ---
 
-## 实现方式
+## 🛠️ 实现方式
 
-- **后端**：Node.js + Express，调用 ffprobe 命令行工具检测流媒体信息，缓存检测结果提升性能。
-- **前端**：原生 HTML+CSS+JS，Bootstrap 5 美化界面，AJAX 与后端交互。
-- **数据存储**：检测结果存储于内存，重启服务后会清空。
+- 🔧 **后端**：Node.js + Express，调用 ffprobe 命令行工具检测流媒体信息，缓存检测结果提升性能
+- 🎯 **前端**：原生 HTML+CSS+JS，Bootstrap 5 美化界面，AJAX 与后端交互
+- 💾 **数据存储**：检测结果存储于内存，重启服务后会清空
 
 ---
 
@@ -102,6 +103,94 @@ npm start
 
 ---
 
+## Docker 部署说明
+
+### 方式一：使用 Docker 命令直接运行
+
+```bash
+# 拉取镜像
+docker pull ghcr.io/cgg888/iptv-web-checker:1.0.0
+
+# 运行容器（默认端口 3000）
+docker run -d -p 3000:3000 --name iptv-checker ghcr.io/cgg888/iptv-web-checker:1.0.0
+
+# 如果要使用其他端口（例如 8080），可以：
+docker run -d -p 8080:3000 --name iptv-checker ghcr.io/cgg888/iptv-web-checker:1.0.0
+```
+
+### 方式二：使用 Docker Compose（推荐）
+
+1. 下载 docker-compose.yml 文件：
+```bash
+# 创建项目目录
+mkdir iptv-checker && cd iptv-checker
+
+# 下载 docker-compose.yml
+wget https://raw.githubusercontent.com/CGG888/iptv-web-checker/main/docker-compose.yml
+# 或手动创建 docker-compose.yml 文件并粘贴以下内容：
+version: '3'
+services:
+  iptv-checker:
+    image: ghcr.io/cgg888/iptv-web-checker:1.0.0
+    container_name: iptv-checker
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+```
+
+2. 启动服务：
+```bash
+docker-compose up -d
+```
+
+3. 查看日志：
+```bash
+docker-compose logs
+```
+
+4. 停止服务：
+```bash
+docker-compose down
+```
+
+#### 注意事项
+- 确保系统已安装 Docker 和 Docker Compose
+- 容器默认监听 3000 端口
+- 首次运行会自动下载所需的镜像
+- 镜像大小约 200MB，采用 Alpine Linux 基础镜像，已经过优化
+- 内置 ffmpeg，无需额外安装
+- 使用 Docker Compose 可以更方便地管理容器
+
+#### 常见问题
+1. 如果端口被占用，编辑 docker-compose.yml 修改端口映射（例如："8080:3000"）
+2. 如果需要查看日志：`docker-compose logs -f`
+3. 如果需要重启容器：`docker-compose restart`
+4. 如果需要更新镜像：`docker-compose pull && docker-compose up -d`
+
+---
+
+## 版本历史
+
+### v1.0.0 (2025-05-25)
+- 🎉 首次发布
+- ✨ 支持批量检测 IPTV 组播流
+- 🚀 实现 Docker 容器化部署
+- 📦 提供 Docker Hub 镜像
+- 🛠️ 基于 Alpine Linux 优化镜像体积
+- 🔒 增加容器安全性配置
+- 📝 完善部署文档
+
+### 计划功能
+- [ ] 数据持久化存储
+- [ ] 自定义检测超时时间
+- [ ] 批量导入导出功能增强
+- [ ] 支持更多流媒体协议
+- [ ] Web 界面优化
+
+---
+
 ## 侵权说明
 本项目仅供学习与交流，严禁用于任何商业用途或非法用途。若涉及版权或侵权问题，请联系作者及时删除相关内容。
 
@@ -110,27 +199,25 @@ npm start
 
 ---
 
-## 其他说明
-- 支持 Windows 和 Linux 部署。
-- 如需自定义端口，请修改 `src/index.js` 中的 `port` 变量。
-- 如需持久化存储，可自行扩展存储逻辑。
-- 建议定期备份检测结果（如有需求可自行开发导出/导入功能）。
-- 如遇到页面功能异常，请尝试刷新页面或更换浏览器。
+## 📌 其他说明
+- 💻 支持 Windows 和 Linux 部署
+- ⚙️ 如需自定义端口，请修改 `src/index.js` 中的 `port` 变量
+- 💾 如需持久化存储，可自行扩展存储逻辑
+- 💡 建议定期备份检测结果（如有需求可自行开发导出/导入功能）
+- 🔄 如遇到页面功能异常，请尝试刷新页面或更换浏览器
 
 ---
 
-## 联系作者
-- 作者：超哥哥
-- 邮箱：cgg@mtoo.vip
+## 📧 联系作者
+- 👨‍💻 作者：超哥哥
+- 📮 邮箱：cgg@mtoo.vip
 
 ---
 
-感谢您的使用！
+🙏 感谢您的使用！
 
 ---
 
 ## 页面预览
-
-![Iptv-web-Checker 检测空数据界面](./public/preview-empty.png)
 
 ![Iptv-web-Checker 界面截图](./public/preview.png)
