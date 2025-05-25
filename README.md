@@ -274,6 +274,7 @@ docker-compose down
 ## 📧 联系作者
 - 👨‍💻 作者：超哥哥
 - 📮 邮箱：cgg@mtoo.vip
+- 📮 QQ:点击链接加入群聊【Iptv-web-Checker组播检测】：https://qm.qq.com/q/IpOAKltpq
 
 ---
 
